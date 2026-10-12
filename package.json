@@ -3,7 +3,7 @@
   "displayName": "Diffstat",
   "description": "Lines added and removed since your last commit, with green/red diffstat bars right in the Source Control tab.",
   "version": "0.1.0",
-  "publisher": "your-publisher-id",
+  "publisher": "TheRealHanschu",
   "license": "MIT",
   "repository": {
     "type": "git",
