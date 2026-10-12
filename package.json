@@ -1,0 +1,126 @@
+{
+  "name": "diffstat",
+  "displayName": "Diffstat",
+  "description": "Lines added and removed since your last commit, with green/red diffstat bars right in the Source Control tab.",
+  "version": "0.1.0",
+  "publisher": "your-publisher-id",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheRealHanschu/diffstat.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TheRealHanschu/diffstat/issues"
+  },
+  "homepage": "https://github.com/TheRealHanschu/diffstat#readme",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e2228",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Visualization"
+  ],
+  "keywords": [
+    "git",
+    "diffstat",
+    "diff",
+    "lines changed",
+    "lines of code",
+    "loc",
+    "source control",
+    "scm"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Runs git in the workspace, which is only safe in trusted folders."
+    },
+    "virtualWorkspaces": false
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "views": {
+      "scm": [
+        {
+          "type": "webview",
+          "id": "diffstat.view",
+          "name": "Line Changes",
+          "contextualTitle": "Source Control",
+          "when": "config.git.enabled"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "diffstat.refresh",
+        "title": "Refresh Line Changes",
+        "category": "Diffstat",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "diffstat.refresh",
+          "when": "view == diffstat.view",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Diffstat",
+      "properties": {
+        "diffstat.statusBar.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the total lines added and removed in the status bar."
+        },
+        "diffstat.includeUntracked": {
+          "type": "boolean",
+          "default": true,
+          "description": "Count every line of new (untracked) files as added."
+        },
+        "diffstat.splitStagedChanges": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show staged and unstaged changes as separate groups. Totals still compare the working tree with the last commit."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "package": "npm run check-types && node esbuild.mjs --production",
+    "check-types": "tsc --noEmit",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"test/**/*.test.ts\"",
+    "vsix": "vsce package --no-rewrite-relative-links",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/vscode": "1.90.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "@vscode/vsce-sign@2.1.0": true
+  }
+}
