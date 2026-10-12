@@ -9,6 +9,7 @@ See how much you've changed since your last commit. Diffstat adds a **Line Chang
 - **Line counts per file**: `+80 −12` for every changed file, in your theme's git colors.
 - **Diffstat bars**: each bar shows the share of added and removed lines. 80 added and 20 removed fills it 80% green and 20% red.
 - **Totals**: for each repository, in the view header (even when the view is collapsed) and in the status bar.
+- **Current file**: the counts for the file you're editing, on the right side of the status bar.
 - **Click to diff**: clicking a file opens the same diff as the built-in Changes list.
 - **Live updates**: the counts change as you edit, stage and commit.
 - **New files**: untracked files count as added lines. You can turn this off.
@@ -25,11 +26,17 @@ The status bar at the bottom of the window shows the total since your last commi
 - Click it to open the Line Changes view.
 - To hide it, set `diffstat.statusBar.enabled` to `false`.
 
+On the right side, the status bar shows the counts for the file in the active editor, like `+12 −3`. It only appears when that file has changes. It counts saved changes, so it updates when you save.
+
+- Click it to open the file's diff.
+- To hide it, set `diffstat.statusBar.currentFile` to `false`.
+
 ## Settings
 
 | Setting | Default | Description |
 | --- | --- | --- |
 | `diffstat.statusBar.enabled` | `true` | Show the total in the status bar. |
+| `diffstat.statusBar.currentFile` | `true` | Show the counts for the file you're editing in the status bar. |
 | `diffstat.includeUntracked` | `true` | Count every line of untracked files as added. |
 | `diffstat.splitStagedChanges` | `false` | Show staged and unstaged changes as separate groups. Totals still compare the working tree with the last commit. |
 

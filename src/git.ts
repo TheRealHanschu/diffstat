@@ -18,6 +18,7 @@ export interface ChangeGroup extends LineTotals {
 export interface RepoStats {
   root: string;
   total: LineTotals;
+  changes: FileChange[];
   groups: ChangeGroup[];
 }
 
@@ -31,12 +32,12 @@ export async function getRepoStats(gitPath: string, root: string, options: Stats
   const base = await resolveBase(gitPath, root);
   const untracked = options.includeUntracked ? await getUntrackedChanges(gitPath, root) : [];
 
-  const all = [...(await diff(gitPath, root, [base])), ...untracked];
+  const all = sortByPath([...(await diff(gitPath, root, [base])), ...untracked]);
   const groups = options.splitStaged
     ? [toGroup("staged", await diff(gitPath, root, ["--cached", base])), toGroup("unstaged", [...(await diff(gitPath, root, [])), ...untracked])]
     : [toGroup("all", all)];
 
-  return { root, total: sumChanges(all), groups };
+  return { root, total: sumChanges(all), changes: all, groups };
 }
 
 async function diff(gitPath: string, root: string, args: string[]): Promise<FileChange[]> {
@@ -79,8 +80,11 @@ async function countUntracked(root: string, relativePath: string): Promise<FileC
 }
 
 function toGroup(id: GroupId, changes: FileChange[]): ChangeGroup {
-  changes.sort((a, b) => a.path.localeCompare(b.path));
-  return { id, changes, ...sumChanges(changes) };
+  return { id, changes: sortByPath(changes), ...sumChanges(changes) };
+}
+
+function sortByPath(changes: FileChange[]): FileChange[] {
+  return changes.sort((a, b) => a.path.localeCompare(b.path));
 }
 
 export function runGit(gitPath: string, cwd: string, args: string[], input?: string): Promise<string> {

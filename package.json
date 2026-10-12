@@ -2,7 +2,7 @@
   "name": "diffstat",
   "displayName": "Diffstat",
   "description": "Lines added and removed since your last commit, with green/red diffstat bars right in the Source Control tab.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "TheRealHanschu",
   "license": "MIT",
   "repository": {
@@ -88,6 +88,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show the total lines added and removed in the status bar."
+        },
+        "diffstat.statusBar.currentFile": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the lines added and removed in the file you are editing, on the right side of the status bar."
         },
         "diffstat.includeUntracked": {
           "type": "boolean",

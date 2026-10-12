@@ -77,6 +77,10 @@ test('split stats separate staged and unstaged changes', async () => {
     [['.gitignore', 1, 0], ['keep.txt', 1, 0], ['remove.txt', 0, 2], ['sub/new.txt', 2, 0]],
   );
   assert.deepEqual(stats.total, { added: 5, removed: 3, files: 5 });
+  assert.deepEqual(
+    stats.changes.map(c => [c.path, c.added, c.removed]),
+    [['.gitignore', 1, 0], ['keep.txt', 2, 1], ['remove.txt', 0, 2], ['renamed.txt', 0, 0], ['sub/new.txt', 2, 0]],
+  );
 });
 
 test('untracked files can be excluded', async () => {

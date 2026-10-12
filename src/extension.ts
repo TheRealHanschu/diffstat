@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { CurrentFileStatusBar } from "./currentFile.ts";
 import type { API, GitExtension } from "./gitApi.ts";
 import { fileUri, openChange } from "./open.ts";
 import { LineChangesStatusBar } from "./statusBar.ts";
@@ -17,6 +18,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const tracker = new StatsTracker(git, log);
   const statusBar = new LineChangesStatusBar(tracker);
+  const currentFile = new CurrentFileStatusBar(tracker);
   const view = new LineChangesView(
     context.extensionUri,
     tracker,
@@ -32,21 +34,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     tracker,
     statusBar,
+    currentFile,
     view,
     vscode.window.registerWebviewViewProvider("diffstat.view", view),
     tracker.onDidChange(() => {
       view.update();
       statusBar.update();
+      currentFile.update();
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("diffstat.statusBar")) {
         statusBar.update();
+        currentFile.update();
       }
       if (event.affectsConfiguration("diffstat.includeUntracked") || event.affectsConfiguration("diffstat.splitStagedChanges")) {
         tracker.refreshAll();
       }
     }),
     vscode.commands.registerCommand("diffstat.refresh", () => tracker.refreshAll()),
+    vscode.commands.registerCommand("diffstat.openCurrentFileChange", async () => {
+      const match = currentFile.current;
+      if (match) {
+        await openChange(git, match.repo.root, "all", match.change);
+      }
+    }),
   );
 }
 
