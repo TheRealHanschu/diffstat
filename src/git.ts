@@ -22,20 +22,28 @@ export interface RepoStats {
   groups: ChangeGroup[];
 }
 
+/** Line counts of untracked files by path, reused while a file's size and modification time stay the same. */
+export type UntrackedCache = Map<string, { size: number; mtimeMs: number; added: number | null }>;
+
 /** Untracked files larger than this are listed without line counts. */
 const MAX_UNTRACKED_FILE_SIZE = 20 * 1024 * 1024;
 const UNTRACKED_BATCH_SIZE = 32;
 
 const DIFF_ARGS = ["diff", "--raw", "--numstat", "-z", "--find-renames", "--no-ext-diff", "--no-color"];
 
-export async function getRepoStats(gitPath: string, root: string, options: StatsOptions): Promise<RepoStats> {
-  const base = await resolveBase(gitPath, root);
-  const untracked = options.includeUntracked ? await getUntrackedChanges(gitPath, root) : [];
+export async function getRepoStats(gitPath: string, root: string, options: StatsOptions, cache: UntrackedCache = new Map()): Promise<RepoStats> {
+  const [base, untracked] = await Promise.all([
+    resolveBase(gitPath, root),
+    options.includeUntracked ? getUntrackedChanges(gitPath, root, cache) : [],
+  ]);
+  const [tracked, staged, unstaged] = await Promise.all([
+    diff(gitPath, root, [base]),
+    options.splitStaged ? diff(gitPath, root, ["--cached", base]) : undefined,
+    options.splitStaged ? diff(gitPath, root, []) : undefined,
+  ]);
 
-  const all = sortByPath([...(await diff(gitPath, root, [base])), ...untracked]);
-  const groups = options.splitStaged
-    ? [toGroup("staged", await diff(gitPath, root, ["--cached", base])), toGroup("unstaged", [...(await diff(gitPath, root, [])), ...untracked])]
-    : [toGroup("all", all)];
+  const all = sortByPath([...tracked, ...untracked]);
+  const groups = staged && unstaged ? [toGroup("staged", staged), toGroup("unstaged", [...unstaged, ...untracked])] : [toGroup("all", all)];
 
   return { root, total: sumChanges(all), changes: all, groups };
 }
@@ -53,28 +61,38 @@ async function resolveBase(gitPath: string, root: string): Promise<string> {
   }
 }
 
-async function getUntrackedChanges(gitPath: string, root: string): Promise<FileChange[]> {
+async function getUntrackedChanges(gitPath: string, root: string, cache: UntrackedCache): Promise<FileChange[]> {
   const output = await runGit(gitPath, root, ["ls-files", "--others", "--exclude-standard", "-z"]);
   const paths = output.split("\0").filter((p) => p !== "");
   const changes: FileChange[] = [];
   for (let i = 0; i < paths.length; i += UNTRACKED_BATCH_SIZE) {
     const batch = paths.slice(i, i + UNTRACKED_BATCH_SIZE);
-    changes.push(...(await Promise.all(batch.map((p) => countUntracked(root, p)))));
+    changes.push(...(await Promise.all(batch.map((p) => countUntracked(root, p, cache)))));
+  }
+  const listed = new Set(paths);
+  for (const cached of cache.keys()) {
+    if (!listed.has(cached)) {
+      cache.delete(cached);
+    }
   }
   return changes;
 }
 
-async function countUntracked(root: string, relativePath: string): Promise<FileChange> {
+async function countUntracked(root: string, relativePath: string, cache: UntrackedCache): Promise<FileChange> {
   const change: FileChange = { path: relativePath, status: "?", added: null, removed: null };
   try {
     const fullPath = path.join(root, relativePath);
-    if ((await stat(fullPath)).size <= MAX_UNTRACKED_FILE_SIZE) {
-      const added = countLines(await readFile(fullPath));
-      change.added = added;
-      change.removed = added === null ? null : 0;
+    const { size, mtimeMs } = await stat(fullPath);
+    let entry = cache.get(relativePath);
+    if (!entry || entry.size !== size || entry.mtimeMs !== mtimeMs) {
+      entry = { size, mtimeMs, added: size <= MAX_UNTRACKED_FILE_SIZE ? countLines(await readFile(fullPath)) : null };
+      cache.set(relativePath, entry);
     }
+    change.added = entry.added;
+    change.removed = entry.added === null ? null : 0;
   } catch {
     // Deleted between listing and reading: keep it without counts.
+    cache.delete(relativePath);
   }
   return change;
 }

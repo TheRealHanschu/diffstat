@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { after, before, test } from 'node:test';
-import { getRepoStats, runGit } from '../src/git.ts';
+import { getRepoStats, runGit, type UntrackedCache } from '../src/git.ts';
 
 const GIT = 'git';
 const roots: string[] = [];
@@ -99,4 +99,27 @@ test('works in a repository without commits', async () => {
     stats.groups[0].changes.map(c => [c.path, c.status, c.added]),
     [['staged.txt', 'A', 3], ['untracked.txt', '?', 1]],
   );
+});
+
+test('untracked line counts are cached until the file changes', async () => {
+  const { root } = await createRepo();
+  await writeFile(path.join(root, 'a.txt'), '1\n2\n');
+  await writeFile(path.join(root, 'b.txt'), '1\n');
+  const cache: UntrackedCache = new Map();
+  const options = { includeUntracked: true, splitStaged: false };
+
+  await getRepoStats(GIT, root, options, cache);
+  assert.deepEqual([...cache.keys()].sort(), ['a.txt', 'b.txt']);
+
+  // A cached entry with the same size and time is reused without reading the file.
+  cache.set('a.txt', { ...cache.get('a.txt')!, added: 99 });
+  let stats = await getRepoStats(GIT, root, options, cache);
+  assert.equal(stats.changes.find(c => c.path === 'a.txt')?.added, 99);
+
+  // A changed file is counted again, and a deleted one leaves the cache.
+  await writeFile(path.join(root, 'a.txt'), '1\n2\n3\n');
+  await rm(path.join(root, 'b.txt'));
+  stats = await getRepoStats(GIT, root, options, cache);
+  assert.deepEqual(stats.changes.map(c => [c.path, c.added]), [['a.txt', 3]]);
+  assert.deepEqual([...cache.keys()], ['a.txt']);
 });

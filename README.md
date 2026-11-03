@@ -11,6 +11,9 @@ See how much you've changed since your last commit. Diffstat adds a **Line Chang
 - **Totals**: for each repository, in the view header (even when the view is collapsed) and in the status bar.
 - **Current file**: the counts for the file you're editing, on the right side of the status bar.
 - **Click to diff**: clicking a file opens the same diff as the built-in Changes list.
+- **List or tree**: show files as a flat list, or grouped by folder with totals for each folder. Switch with the button in the view's title bar.
+- **Sorting**: sort by path, by lines changed or by lines added, from **Sort By...** in the view's `...` menu.
+- **File actions**: right-click a file to open it, stage, unstage or discard its changes, copy its path or reveal it in the Explorer. Discard works like in the built-in Changes list: it discards changes that aren't staged, and deletes untracked files.
 - **Live updates**: the counts change as you edit, stage and commit.
 - **New files**: untracked files count as added lines. You can turn this off.
 - **Staged and unstaged**: optionally shown as two separate groups.
@@ -39,6 +42,8 @@ On the right side, the status bar shows the counts for the file in the active ed
 | `diffstat.statusBar.currentFile` | `true` | Show the counts for the file you're editing in the status bar. |
 | `diffstat.includeUntracked` | `true` | Count every line of untracked files as added. |
 | `diffstat.splitStagedChanges` | `false` | Show staged and unstaged changes as separate groups. Totals still compare the working tree with the last commit. |
+| `diffstat.viewMode` | `list` | `list` shows a flat list of files. `tree` groups them by folder. |
+| `diffstat.sortBy` | `path` | `path`, `changes` (lines added and removed, largest first) or `added` (lines added, largest first). |
 
 ## How lines are counted
 

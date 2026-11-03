@@ -8,6 +8,10 @@ export function fileUri(root: string, change: FileChange): vscode.Uri {
   return vscode.Uri.file(path.join(root, change.path));
 }
 
+export async function openFile(root: string, change: FileChange): Promise<void> {
+  await vscode.commands.executeCommand("vscode.open", fileUri(root, change));
+}
+
 export async function openChange(git: API, root: string, group: GroupId, change: FileChange): Promise<void> {
   const right = fileUri(root, change);
   const left = change.oldPath ? vscode.Uri.file(path.join(root, change.oldPath)) : right;

@@ -1,12 +1,15 @@
 import * as vscode from "vscode";
-import { getRepoStats, type RepoStats, type StatsOptions } from "./git.ts";
+import { getRepoStats, type RepoStats, type StatsOptions, type UntrackedCache } from "./git.ts";
 import type { API, Repository } from "./gitApi.ts";
+import type { FileChange } from "./numstat.ts";
+import type { OpenRequest } from "./protocol.ts";
 
 const REFRESH_DELAY_MS = 300;
 
 interface RepoWatch {
   readonly repository: Repository;
   readonly subscription: vscode.Disposable;
+  readonly untracked: UntrackedCache;
   timer?: ReturnType<typeof setTimeout>;
   running: boolean;
   dirty: boolean;
@@ -43,6 +46,17 @@ export class StatsTracker implements vscode.Disposable {
     return this.watches.size;
   }
 
+  findChange(request: OpenRequest): FileChange | undefined {
+    return this.stats
+      .get(request.root)
+      ?.groups.find((group) => group.id === request.group)
+      ?.changes.find((change) => change.path === request.path);
+  }
+
+  repository(root: string): Repository | undefined {
+    return this.watches.get(root)?.repository;
+  }
+
   refreshAll(): void {
     for (const watch of this.watches.values()) {
       this.schedule(watch, 0);
@@ -63,7 +77,13 @@ export class StatsTracker implements vscode.Disposable {
     if (this.watches.has(key)) {
       return;
     }
-    const watch: RepoWatch = { repository, subscription: repository.state.onDidChange(() => this.schedule(watch, REFRESH_DELAY_MS)), running: false, dirty: false };
+    const watch: RepoWatch = {
+      repository,
+      subscription: repository.state.onDidChange(() => this.schedule(watch, REFRESH_DELAY_MS)),
+      untracked: new Map(),
+      running: false,
+      dirty: false,
+    };
     this.watches.set(key, watch);
     this.schedule(watch, 0);
   }
@@ -96,7 +116,7 @@ export class StatsTracker implements vscode.Disposable {
     try {
       do {
         watch.dirty = false;
-        const stats = await getRepoStats(this.git.git.path, key, readOptions());
+        const stats = await getRepoStats(this.git.git.path, key, readOptions(), watch.untracked);
         if (this.watches.get(key) !== watch) {
           return;
         }
