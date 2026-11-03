@@ -21,4 +21,9 @@ export interface API {
 export interface Repository {
   readonly rootUri: Uri;
   readonly state: { readonly onDidChange: Event<void> };
+  add(paths: string[]): Promise<void>;
+  /** Unstages the paths. */
+  revert(paths: string[]): Promise<void>;
+  /** Discards unstaged changes in the paths and deletes untracked ones. */
+  clean(paths: string[]): Promise<void>;
 }

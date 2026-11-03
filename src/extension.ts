@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import { CurrentFileStatusBar } from "./currentFile.ts";
+import { registerFileActions } from "./fileActions.ts";
 import type { API, GitExtension } from "./gitApi.ts";
-import { fileUri, openChange } from "./open.ts";
+import { openChange, openFile } from "./open.ts";
+import type { SortOrder, ViewMode } from "./protocol.ts";
 import { LineChangesStatusBar } from "./statusBar.ts";
 import { StatsTracker } from "./tracker.ts";
 import { LineChangesView } from "./view.ts";
@@ -24,9 +26,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     tracker,
     {
       openChange: (request, change) => openChange(git, request.root, request.group, change),
-      openFile: async (request, change) => {
-        await vscode.commands.executeCommand("vscode.open", fileUri(request.root, change));
-      },
+      openFile: (request, change) => openFile(request.root, change),
     },
     log,
   );
@@ -50,8 +50,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (event.affectsConfiguration("diffstat.includeUntracked") || event.affectsConfiguration("diffstat.splitStagedChanges")) {
         tracker.refreshAll();
       }
+      if (event.affectsConfiguration("diffstat.viewMode") || event.affectsConfiguration("diffstat.sortBy")) {
+        view.update();
+      }
     }),
+    registerFileActions(git, tracker, log),
     vscode.commands.registerCommand("diffstat.refresh", () => tracker.refreshAll()),
+    vscode.commands.registerCommand("diffstat.viewAsTree", () => setViewMode("tree")),
+    vscode.commands.registerCommand("diffstat.viewAsList", () => setViewMode("list")),
+    vscode.commands.registerCommand("diffstat.sortBy", pickSortOrder),
     vscode.commands.registerCommand("diffstat.openCurrentFileChange", async () => {
       const match = currentFile.current;
       if (match) {
@@ -62,6 +69,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export function deactivate(): void {}
+
+const SORT_ORDERS: { value: SortOrder; label: string }[] = [
+  { value: "path", label: "Path" },
+  { value: "changes", label: "Lines Changed" },
+  { value: "added", label: "Lines Added" },
+];
+
+async function setViewMode(mode: ViewMode): Promise<void> {
+  await vscode.workspace.getConfiguration("diffstat").update("viewMode", mode, vscode.ConfigurationTarget.Global);
+}
+
+async function pickSortOrder(): Promise<void> {
+  const config = vscode.workspace.getConfiguration("diffstat");
+  const current = config.get<SortOrder>("sortBy", "path");
+  const items = SORT_ORDERS.map((order) => ({ ...order, description: order.value === current ? "current" : undefined }));
+  const picked = await vscode.window.showQuickPick(items, { placeHolder: "Sort changed files by" });
+  if (picked && picked.value !== current) {
+    await config.update("sortBy", picked.value, vscode.ConfigurationTarget.Global);
+  }
+}
 
 async function getGitApi(context: vscode.ExtensionContext): Promise<API | undefined> {
   const extension = vscode.extensions.getExtension<GitExtension>("vscode.git");

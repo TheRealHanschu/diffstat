@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import * as vscode from "vscode";
 import type { FileChange } from "./numstat.ts";
-import type { OpenRequest, ToExtension, ToWebview } from "./protocol.ts";
+import type { OpenRequest, SortOrder, ToExtension, ToWebview, ViewMode } from "./protocol.ts";
 import type { StatsTracker } from "./tracker.ts";
 
 const TITLE = "Line Changes";
@@ -48,7 +48,13 @@ export class LineChangesView implements vscode.WebviewViewProvider, vscode.Dispo
       return;
     }
     this.updateHeader();
-    const message: ToWebview = { type: "update", repos: this.tracker.all };
+    const config = vscode.workspace.getConfiguration("diffstat");
+    const message: ToWebview = {
+      type: "update",
+      repos: this.tracker.all,
+      viewMode: config.get<ViewMode>("viewMode", "list"),
+      sortBy: config.get<SortOrder>("sortBy", "path"),
+    };
     void this.view.webview.postMessage(message);
   }
 
@@ -79,10 +85,7 @@ export class LineChangesView implements vscode.WebviewViewProvider, vscode.Dispo
       this.update();
       return;
     }
-    const change = this.tracker.all
-      .find((stats) => stats.root === message.root)
-      ?.groups.find((group) => group.id === message.group)
-      ?.changes.find((c) => c.path === message.path);
+    const change = this.tracker.findChange(message);
     if (!change) {
       return;
     }
@@ -110,7 +113,7 @@ export class LineChangesView implements vscode.WebviewViewProvider, vscode.Dispo
   <link rel="stylesheet" href="${style}">
   <title>Line Changes</title>
 </head>
-<body>
+<body data-vscode-context='{"preventDefaultContextMenuItems": true}'>
   <div id="root" role="tree" aria-label="Line changes"></div>
   <script nonce="${nonce}" src="${script}"></script>
 </body>

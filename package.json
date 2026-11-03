@@ -2,7 +2,7 @@
   "name": "diffstat",
   "displayName": "Diffstat",
   "description": "Lines added and removed since your last commit, with green/red diffstat bars right in the Source Control tab.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "TheRealHanschu",
   "license": "MIT",
   "repository": {
@@ -70,14 +70,162 @@
         "title": "Refresh Line Changes",
         "category": "Diffstat",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "diffstat.viewAsTree",
+        "title": "View as Tree",
+        "category": "Diffstat",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "diffstat.viewAsList",
+        "title": "View as List",
+        "category": "Diffstat",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "diffstat.sortBy",
+        "title": "Sort By...",
+        "category": "Diffstat"
+      },
+      {
+        "command": "diffstat.openChange",
+        "title": "Open Changes",
+        "category": "Diffstat"
+      },
+      {
+        "command": "diffstat.openFile",
+        "title": "Open File",
+        "category": "Diffstat"
+      },
+      {
+        "command": "diffstat.stage",
+        "title": "Stage Changes",
+        "category": "Diffstat"
+      },
+      {
+        "command": "diffstat.unstage",
+        "title": "Unstage Changes",
+        "category": "Diffstat"
+      },
+      {
+        "command": "diffstat.discard",
+        "title": "Discard Changes",
+        "category": "Diffstat"
+      },
+      {
+        "command": "diffstat.copyPath",
+        "title": "Copy Path",
+        "category": "Diffstat"
+      },
+      {
+        "command": "diffstat.copyRelativePath",
+        "title": "Copy Relative Path",
+        "category": "Diffstat"
+      },
+      {
+        "command": "diffstat.revealInExplorer",
+        "title": "Reveal in Explorer View",
+        "category": "Diffstat"
       }
     ],
     "menus": {
       "view/title": [
         {
+          "command": "diffstat.viewAsTree",
+          "when": "view == diffstat.view && config.diffstat.viewMode != tree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "diffstat.viewAsList",
+          "when": "view == diffstat.view && config.diffstat.viewMode == tree",
+          "group": "navigation@1"
+        },
+        {
           "command": "diffstat.refresh",
           "when": "view == diffstat.view",
-          "group": "navigation"
+          "group": "navigation@2"
+        },
+        {
+          "command": "diffstat.sortBy",
+          "when": "view == diffstat.view",
+          "group": "1_view"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "diffstat.openChange",
+          "when": "webviewId == diffstat.view && webviewSection == file",
+          "group": "navigation@1"
+        },
+        {
+          "command": "diffstat.openFile",
+          "when": "webviewId == diffstat.view && webviewSection == file && status != D",
+          "group": "navigation@2"
+        },
+        {
+          "command": "diffstat.stage",
+          "when": "webviewId == diffstat.view && webviewSection == file && group != staged",
+          "group": "1_modification@1"
+        },
+        {
+          "command": "diffstat.unstage",
+          "when": "webviewId == diffstat.view && webviewSection == file && group != unstaged && status != '?'",
+          "group": "1_modification@2"
+        },
+        {
+          "command": "diffstat.discard",
+          "when": "webviewId == diffstat.view && webviewSection == file && group != staged",
+          "group": "1_modification@3"
+        },
+        {
+          "command": "diffstat.copyPath",
+          "when": "webviewId == diffstat.view && webviewSection == file",
+          "group": "2_copy@1"
+        },
+        {
+          "command": "diffstat.copyRelativePath",
+          "when": "webviewId == diffstat.view && webviewSection == file",
+          "group": "2_copy@2"
+        },
+        {
+          "command": "diffstat.revealInExplorer",
+          "when": "webviewId == diffstat.view && webviewSection == file && status != D",
+          "group": "3_reveal"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "diffstat.openChange",
+          "when": "false"
+        },
+        {
+          "command": "diffstat.openFile",
+          "when": "false"
+        },
+        {
+          "command": "diffstat.stage",
+          "when": "false"
+        },
+        {
+          "command": "diffstat.unstage",
+          "when": "false"
+        },
+        {
+          "command": "diffstat.discard",
+          "when": "false"
+        },
+        {
+          "command": "diffstat.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "diffstat.copyRelativePath",
+          "when": "false"
+        },
+        {
+          "command": "diffstat.revealInExplorer",
+          "when": "false"
         }
       ]
     },
@@ -103,6 +251,34 @@
           "type": "boolean",
           "default": false,
           "description": "Show staged and unstaged changes as separate groups. Totals still compare the working tree with the last commit."
+        },
+        "diffstat.viewMode": {
+          "type": "string",
+          "enum": [
+            "list",
+            "tree"
+          ],
+          "enumDescriptions": [
+            "Show changed files as a flat list.",
+            "Group changed files by folder, with totals for each folder."
+          ],
+          "default": "list",
+          "description": "How the Line Changes view shows changed files."
+        },
+        "diffstat.sortBy": {
+          "type": "string",
+          "enum": [
+            "path",
+            "changes",
+            "added"
+          ],
+          "enumDescriptions": [
+            "Sort by path.",
+            "Sort by lines added and removed, largest first.",
+            "Sort by lines added, largest first."
+          ],
+          "default": "path",
+          "description": "How the Line Changes view sorts changed files. In the tree view, folders are sorted the same way by their totals."
         }
       }
     }

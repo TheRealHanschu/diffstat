@@ -1,7 +1,8 @@
 import { addedPercent } from "../format.ts";
 import type { ChangeGroup, GroupId, RepoStats } from "../git.ts";
 import type { FileChange, LineTotals } from "../numstat.ts";
-import type { ToExtension, ToWebview } from "../protocol.ts";
+import type { FileContext, SortOrder, ToExtension, ToWebview, ViewMode } from "../protocol.ts";
+import { buildTree, sortChanges, type TreeNode } from "../tree.ts";
 
 interface VsCodeApi {
   postMessage(message: ToExtension): void;
@@ -21,10 +22,12 @@ const vscode = acquireVsCodeApi();
 const root = document.getElementById("root")!;
 const collapsed = new Set(vscode.getState()?.collapsed ?? []);
 let repos: RepoStats[] = [];
+let viewMode: ViewMode = "list";
+let sortBy: SortOrder = "path";
 
 window.addEventListener("message", (event: MessageEvent<ToWebview>) => {
   if (event.data.type === "update") {
-    repos = event.data.repos;
+    ({ repos, viewMode, sortBy } = event.data);
     render();
   }
 });
@@ -70,7 +73,7 @@ function render(): void {
   (focused ?? rows[0])?.setAttribute("tabindex", "0");
 }
 
-function headerRow(key: string, level: number, label: string, totals: LineTotals, expandable: boolean, title: string | undefined, kind: "repo" | "group"): HTMLElement {
+function headerRow(key: string, level: number, label: string, totals: LineTotals, expandable: boolean, title: string | undefined, kind: "repo" | "group" | "folder"): HTMLElement {
   const row = el("div", `row ${kind}`);
   row.dataset.key = key;
   row.setAttribute("role", "treeitem");
@@ -99,19 +102,39 @@ function headerRow(key: string, level: number, label: string, totals: LineTotals
 }
 
 function appendFiles(repoRoot: string, group: ChangeGroup, level: number): void {
-  for (const change of group.changes) {
-    root.append(fileRow(repoRoot, group.id, change, level));
+  if (viewMode === "tree") {
+    appendNodes(repoRoot, group.id, buildTree(group.changes, sortBy), level);
+    return;
+  }
+  for (const change of sortChanges(group.changes, sortBy)) {
+    root.append(fileRow(repoRoot, group.id, change, level, true));
   }
 }
 
-function fileRow(repoRoot: string, group: GroupId, change: FileChange, level: number): HTMLElement {
+function appendNodes(repoRoot: string, group: GroupId, nodes: TreeNode[], level: number): void {
+  for (const node of nodes) {
+    if (node.kind === "file") {
+      root.append(fileRow(repoRoot, group, node.change, level, false));
+      continue;
+    }
+    const key = `folder:${repoRoot}:${group}:${node.path}`;
+    root.append(headerRow(key, level, node.name, node, true, node.path, "folder"));
+    if (!collapsed.has(key)) {
+      appendNodes(repoRoot, group, node.children, level + 1);
+    }
+  }
+}
+
+function fileRow(repoRoot: string, group: GroupId, change: FileChange, level: number, showDir: boolean): HTMLElement {
   const slash = change.path.lastIndexOf("/");
   const name = change.path.slice(slash + 1);
-  const dir = slash >= 0 ? change.path.slice(0, slash) : "";
+  const dir = showDir && slash >= 0 ? change.path.slice(0, slash) : "";
   const request = { root: repoRoot, group, path: change.path };
+  const context: FileContext = { webviewSection: "file", status: change.status, ...request };
 
   const row = el("div", `row file status-${change.status === "?" ? "untracked" : change.status}`);
   row.dataset.key = `file:${repoRoot}:${group}:${change.path}`;
+  row.dataset.vscodeContext = JSON.stringify(context);
   row.setAttribute("role", "treeitem");
   row.setAttribute("aria-level", String(level + 1));
   row.style.setProperty("--level", String(level));
@@ -219,6 +242,8 @@ function onKeyDown(event: KeyboardEvent): void {
     case "ArrowLeft":
       if (expanded === "true") {
         row.click();
+      } else {
+        moveFocus(row, parentRow(rows, index));
       }
       break;
     case "Enter":
@@ -229,6 +254,16 @@ function onKeyDown(event: KeyboardEvent): void {
       return;
   }
   event.preventDefault();
+}
+
+function parentRow(rows: HTMLElement[], index: number): HTMLElement | undefined {
+  const level = Number(rows[index].getAttribute("aria-level"));
+  for (let i = index - 1; i >= 0; i--) {
+    if (Number(rows[i].getAttribute("aria-level")) < level) {
+      return rows[i];
+    }
+  }
+  return undefined;
 }
 
 function moveFocus(from: HTMLElement, to: HTMLElement | undefined): void {
